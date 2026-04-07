@@ -23,25 +23,23 @@ def load_master_db():
         try:
             df = pd.read_excel(file, dtype=str)
             if 'Plate' in df.columns:
-                # --- 核心更新：智能提取 #01 格式的板号 ---
+                # --- 核心更新：智能提取纯数字板号 (例如 "01") ---
                 is_hash = df['Plate'].astype(str).str.startswith('#')
                 if is_hash.any():
-                    # 提取出类似 "# 01" 的字眼，并去掉空格变成 "#01"
+                    # 提取 "# 01"，去掉 "#" 和空格，只保留 "01"
                     df['Real_Plate'] = df['Plate'].apply(
-                        lambda x: str(x).split('-')[0].replace(' ', '') if str(x).startswith('#') else None
+                        lambda x: str(x).split('-')[0].replace('#', '').strip() if str(x).startswith('#') else None
                     )
-                    # 向下填充，把 #01 赋值给下面紧跟着的所有具体化合物行
+                    # 向下填充，把 "01" 赋值给下面紧跟着的所有具体化合物行
                     df['Real_Plate'] = df['Real_Plate'].ffill()
                     # 删除掉多余的整句注释行
                     df = df[~is_hash]
-                    # 用 #01 覆盖原来的 HYCPKxxx
+                    # 用 "01" 覆盖原来的 HYCPKxxx
                     df['Plate'] = df['Real_Plate'].fillna(df['Plate'])
                     df = df.drop(columns=['Real_Plate'])
                 else:
                     # 如果没有带 # 的注释行，也清洗一下可能残留的注释
                     df = df[~df['Plate'].astype(str).str.startswith('#')]
-                # ----------------------------------------
-                    
             dfs.append(df)
         except Exception as e:
             st.error(f"读取文件 {file} 失败: {e}")
